@@ -1,0 +1,52 @@
+@inject Microsoft.AspNetCore.Identity.SignInManager<AppUser> SignInManager
+@inject Microsoft.AspNetCore.Identity.UserManager<AppUser> UserManager
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] · FinSight</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
+    <style>
+        body { background:#f8f9fa; }
+        .navbar-brand { font-weight:600; }
+        .card-metric { border:0; box-shadow:0 1px 3px rgba(0,0,0,.06); }
+        .sev-Ok { background:#d1e7dd; }
+        .sev-Warning { background:#fff3cd; }
+        .sev-Breached { background:#f8d7da; }
+    </style>
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+    <div class="container">
+        <a class="navbar-brand" asp-controller="Home" asp-action="Index">💰 FinSight</a>
+        <div class="navbar-nav">
+            <a class="nav-link text-light" asp-controller="Home" asp-action="Index">Dashboard</a>
+            <a class="nav-link text-light" asp-controller="Transactions" asp-action="Index">Transactions</a>
+            <a class="nav-link text-light" asp-controller="Budget" asp-action="Index">Budgets</a>
+        </div>
+        <div class="ms-auto">
+            @if (SignInManager.IsSignedIn(User))
+            {
+                <span class="text-light me-3">@User.Identity?.Name</span>
+                <form class="d-inline" asp-area="Identity" asp-page="/Account/Logout" method="post">
+                    <button type="submit" class="btn btn-outline-light btn-sm">Sign out</button>
+                </form>
+            }
+            else
+            {
+                <a class="btn btn-outline-light btn-sm" asp-area="Identity" asp-page="/Account/Login">Sign in</a>
+                <a class="btn btn-light btn-sm" asp-area="Identity" asp-page="/Account/Register">Register</a>
+            }
+        </div>
+    </div>
+</nav>
+<main class="container">
+    @RenderBody()
+</main>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

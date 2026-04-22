@@ -1,0 +1,42 @@
+@model IEnumerable<Transaction>
+@{
+    ViewData["Title"] = "Transactions";
+    var year  = (int)ViewBag.Year;
+    var month = (int)ViewBag.Month;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="mb-0">Transactions — @(new DateTime(year, month, 1).ToString("MMMM yyyy"))</h1>
+    <div>
+        <a class="btn btn-outline-secondary" asp-action="Export" asp-route-format="csv">Export CSV</a>
+        <a class="btn btn-primary" asp-action="Create">+ New</a>
+    </div>
+</div>
+
+<table class="table table-hover bg-white">
+    <thead>
+        <tr><th>Date</th><th>Category</th><th>Type</th><th class="text-end">Amount</th><th>Note</th><th></th></tr>
+    </thead>
+    <tbody>
+        @foreach (var t in Model)
+        {
+            <tr>
+                <td>@t.Date.ToString("dd MMM")</td>
+                <td>@t.CategoryName</td>
+                <td><span class="badge bg-@(t.Type == TransactionType.Income ? "success" : "danger")">@t.Type</span></td>
+                <td class="text-end">£@t.Amount.ToString("N2")</td>
+                <td class="text-muted">@t.Note</td>
+                <td class="text-end">
+                    <form method="post" asp-action="Delete" asp-route-id="@t.Id" class="d-inline">
+                        @Html.AntiForgeryToken()
+                        <button class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete?')">✕</button>
+                    </form>
+                </td>
+            </tr>
+        }
+        @if (!Model.Any())
+        {
+            <tr><td colspan="6" class="text-center text-muted py-4">No transactions this month.</td></tr>
+        }
+    </tbody>
+</table>

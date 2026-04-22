@@ -1,0 +1,25 @@
+@model IEnumerable<Budget>
+@{
+    ViewData["Title"] = "Budgets";
+}
+
+<h1 class="mb-3">Budgets</h1>
+
+<table class="table bg-white">
+    <thead><tr><th>Category</th><th>Rule type</th><th class="text-end">Limit</th><th>Active</th></tr></thead>
+    <tbody>
+        @foreach (var b in Model)
+        {
+            <tr>
+                <td>@b.CategoryName</td>
+                <td>@b.RuleType</td>
+                <td class="text-end">@b.LimitAmount.ToString("N2")</td>
+                <td>@(b.IsActive ? "Yes" : "No")</td>
+            </tr>
+        }
+        @if (!Model.Any())
+        {
+            <tr><td colspan="4" class="text-center text-muted py-4">No budgets configured.</td></tr>
+        }
+    </tbody>
+</table>

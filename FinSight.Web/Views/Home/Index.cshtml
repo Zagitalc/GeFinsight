@@ -1,0 +1,105 @@
+@{
+    ViewData["Title"] = "Dashboard";
+    var report      = (ReportData)ViewBag.Report;
+    var ruleResults = (List<RuleResult>)ViewBag.RuleResults;
+    var insight     = (string)(ViewBag.Insight ?? string.Empty);
+}
+
+<h1 class="mb-4">Dashboard</h1>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card card-metric">
+            <div class="card-body">
+                <div class="text-muted small">Income this month</div>
+                <div class="h3 mb-0 text-success">£@report.TotalIncome.ToString("N2")</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card card-metric">
+            <div class="card-body">
+                <div class="text-muted small">Expenses this month</div>
+                <div class="h3 mb-0 text-danger">£@report.TotalExpenses.ToString("N2")</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card card-metric">
+            <div class="card-body">
+                <div class="text-muted small">Net</div>
+                <div class="h3 mb-0">£@report.NetAmount.ToString("N2")</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">Spending by category</div>
+            <div class="card-body">
+                @if (report.ByCategory.Any())
+                {
+                    <canvas id="catChart" height="220"></canvas>
+                }
+                else
+                {
+                    <p class="text-muted mb-0">No expenses yet this month.</p>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">Budget rules</div>
+            <ul class="list-group list-group-flush">
+                @foreach (var r in ruleResults)
+                {
+                    <li class="list-group-item sev-@r.Severity">
+                        <div class="d-flex justify-content-between">
+                            <strong>@r.CategoryName</strong>
+                            <span class="badge bg-secondary">@r.RuleName</span>
+                        </div>
+                        <div class="small">@r.Message</div>
+                    </li>
+                }
+                @if (!ruleResults.Any())
+                {
+                    <li class="list-group-item text-muted">No active budget rules.</li>
+                }
+            </ul>
+        </div>
+    </div>
+</div>
+
+<div class="card mt-4">
+    <div class="card-header">💡 AI Insight</div>
+    <div class="card-body">
+        @if (string.IsNullOrWhiteSpace(insight))
+        {
+            <p class="text-muted mb-0">
+                Configure <code>Anthropic:ApiKey</code> (in user-secrets or appsettings) to enable Claude-powered spending analysis.
+            </p>
+        }
+        else
+        {
+            <p class="mb-0">@insight</p>
+        }
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    const data = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(report.ByCategory));
+    const labels = Object.keys(data);
+    const values = Object.values(data);
+    if (labels.length) {
+        new Chart(document.getElementById('catChart'), {
+            type: 'doughnut',
+            data: { labels, datasets: [{ data: values }] },
+            options: { plugins: { legend: { position: 'right' } } }
+        });
+    }
+</script>
+}
