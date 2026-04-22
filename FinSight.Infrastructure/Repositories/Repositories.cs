@@ -35,6 +35,9 @@ public class TransactionRepository : ITransactionRepository
     public async Task<Transaction?> GetByIdAsync(int id)
         => await _db.Transactions.FindAsync(id);
 
+    public async Task<Transaction?> GetByIdForUserAsync(int id, string userId)
+        => await _db.Transactions.FirstOrDefaultAsync(t => t.Id == id && t.UserId == userId);
+
     public async Task AddAsync(Transaction transaction)
     {
         _db.Transactions.Add(transaction);
@@ -47,9 +50,9 @@ public class TransactionRepository : ITransactionRepository
         await _db.SaveChangesAsync();
     }
 
-    public async Task DeleteAsync(int id)
+    public async Task DeleteAsync(int id, string userId)
     {
-        var t = await _db.Transactions.FindAsync(id);
+        var t = await GetByIdForUserAsync(id, userId);
         if (t is not null)
         {
             _db.Transactions.Remove(t);
@@ -94,11 +97,15 @@ public class BudgetRepository : IBudgetRepository
 
     public async Task<IEnumerable<Budget>> GetByUserAsync(string userId)
         => await _db.Budgets
-            .Where(b => b.UserId == userId && b.IsActive)
+            .Where(b => b.UserId == userId)
+            .OrderBy(b => b.CategoryName)
             .ToListAsync();
 
     public async Task<Budget?> GetByIdAsync(int id)
         => await _db.Budgets.FindAsync(id);
+
+    public async Task<Budget?> GetByIdForUserAsync(int id, string userId)
+        => await _db.Budgets.FirstOrDefaultAsync(b => b.Id == id && b.UserId == userId);
 
     public async Task AddAsync(Budget budget)
     {
@@ -112,9 +119,9 @@ public class BudgetRepository : IBudgetRepository
         await _db.SaveChangesAsync();
     }
 
-    public async Task DeleteAsync(int id)
+    public async Task DeleteAsync(int id, string userId)
     {
-        var b = await _db.Budgets.FindAsync(id);
+        var b = await GetByIdForUserAsync(id, userId);
         if (b is not null) { _db.Budgets.Remove(b); await _db.SaveChangesAsync(); }
     }
 }

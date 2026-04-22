@@ -1,0 +1,40 @@
+@page
+@model FinSight.Web.Areas.Identity.Pages.Account.RegisterModel
+@{
+    ViewData["Title"] = "Register";
+    Layout = "/Views/Shared/_Layout.cshtml";
+}
+
+<section class="auth-panel workspace-panel p-4 p-md-5 mb-4">
+    <p class="text-muted mb-1">Create a local demo profile</p>
+    <h1 class="page-title mb-4">Register For FinSight</h1>
+
+    <form method="post">
+        @Html.AntiForgeryToken()
+        <div asp-validation-summary="ModelOnly" class="text-danger mb-3" role="alert"></div>
+        <input type="hidden" asp-for="ReturnUrl" />
+
+        <div class="mb-3">
+            <label asp-for="Input.Email" class="form-label"></label>
+            <input asp-for="Input.Email" class="form-control" autocomplete="username" spellcheck="false" />
+            <span asp-validation-for="Input.Email" class="text-danger small"></span>
+        </div>
+        <div class="mb-3">
+            <label asp-for="Input.DisplayName" class="form-label"></label>
+            <input asp-for="Input.DisplayName" class="form-control" autocomplete="name" />
+            <span asp-validation-for="Input.DisplayName" class="text-danger small"></span>
+        </div>
+        <div class="mb-3">
+            <label asp-for="Input.Password" class="form-label"></label>
+            <input asp-for="Input.Password" class="form-control" autocomplete="new-password" />
+            <span asp-validation-for="Input.Password" class="text-danger small"></span>
+        </div>
+        <div class="mb-4">
+            <label asp-for="Input.ConfirmPassword" class="form-label"></label>
+            <input asp-for="Input.ConfirmPassword" class="form-control" autocomplete="new-password" />
+            <span asp-validation-for="Input.ConfirmPassword" class="text-danger small"></span>
+        </div>
+        <button type="submit" class="btn btn-primary w-100 mb-3">Create Account</button>
+        <a asp-page="./Login" asp-route-returnUrl="@Model.ReturnUrl">Already Have An Account?</a>
+    </form>
+</section>

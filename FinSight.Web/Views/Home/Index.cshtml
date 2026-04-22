@@ -5,61 +5,57 @@
     var insight     = (string)(ViewBag.Insight ?? string.Empty);
 }
 
-<h1 class="mb-4">Dashboard</h1>
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-4">
+    <div>
+        <p class="text-muted mb-1">Current month</p>
+        <h1 class="page-title mb-0">Dashboard</h1>
+    </div>
+    <a class="btn btn-primary" asp-controller="Transactions" asp-action="Create">Add Transaction</a>
+</div>
 
-<div class="row g-3 mb-4">
-    <div class="col-md-4">
-        <div class="card card-metric">
-            <div class="card-body">
-                <div class="text-muted small">Income this month</div>
-                <div class="h3 mb-0 text-success">£@report.TotalIncome.ToString("N2")</div>
-            </div>
-        </div>
+<div class="metric-grid mb-4">
+    <div class="metric-panel">
+        <div class="metric-label">Income This Month</div>
+        <div class="metric-value text-success">£@report.TotalIncome.ToString("N2")</div>
     </div>
-    <div class="col-md-4">
-        <div class="card card-metric">
-            <div class="card-body">
-                <div class="text-muted small">Expenses this month</div>
-                <div class="h3 mb-0 text-danger">£@report.TotalExpenses.ToString("N2")</div>
-            </div>
-        </div>
+    <div class="metric-panel">
+        <div class="metric-label">Expenses This Month</div>
+        <div class="metric-value text-danger">£@report.TotalExpenses.ToString("N2")</div>
     </div>
-    <div class="col-md-4">
-        <div class="card card-metric">
-            <div class="card-body">
-                <div class="text-muted small">Net</div>
-                <div class="h3 mb-0">£@report.NetAmount.ToString("N2")</div>
-            </div>
-        </div>
+    <div class="metric-panel">
+        <div class="metric-label">Net</div>
+        <div class="metric-value">£@report.NetAmount.ToString("N2")</div>
     </div>
 </div>
 
 <div class="row g-3">
     <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">Spending by category</div>
-            <div class="card-body">
+        <section class="workspace-panel h-100">
+            <div class="panel-header">Spending By Category</div>
+            <div class="p-3">
                 @if (report.ByCategory.Any())
                 {
-                    <canvas id="catChart" height="220"></canvas>
+                    <div class="chart-wrap">
+                        <canvas id="catChart"></canvas>
+                    </div>
                 }
                 else
                 {
                     <p class="text-muted mb-0">No expenses yet this month.</p>
                 }
             </div>
-        </div>
+        </section>
     </div>
     <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">Budget rules</div>
+        <section class="workspace-panel h-100">
+            <div class="panel-header">Budget Rules</div>
             <ul class="list-group list-group-flush">
                 @foreach (var r in ruleResults)
                 {
-                    <li class="list-group-item sev-@r.Severity">
-                        <div class="d-flex justify-content-between">
+                    <li class="list-group-item rule-item sev-@r.Severity">
+                        <div class="d-flex justify-content-between gap-3">
                             <strong>@r.CategoryName</strong>
-                            <span class="badge bg-secondary">@r.RuleName</span>
+                            <span class="badge bg-dark rule-badge">@r.RuleName</span>
                         </div>
                         <div class="small">@r.Message</div>
                     </li>
@@ -69,25 +65,16 @@
                     <li class="list-group-item text-muted">No active budget rules.</li>
                 }
             </ul>
-        </div>
+        </section>
     </div>
 </div>
 
-<div class="card mt-4">
-    <div class="card-header">💡 AI Insight</div>
-    <div class="card-body">
-        @if (string.IsNullOrWhiteSpace(insight))
-        {
-            <p class="text-muted mb-0">
-                Configure <code>Anthropic:ApiKey</code> (in user-secrets or appsettings) to enable Claude-powered spending analysis.
-            </p>
-        }
-        else
-        {
-            <p class="mb-0">@insight</p>
-        }
+<section class="workspace-panel mt-4 mb-4">
+    <div class="panel-header">AI Insight</div>
+    <div class="p-3">
+        <p class="mb-0">@insight</p>
     </div>
-</div>
+</section>
 
 @section Scripts {
 <script>
@@ -96,10 +83,17 @@
     const values = Object.values(data);
     if (labels.length) {
         new Chart(document.getElementById('catChart'), {
-            type: 'doughnut',
-            data: { labels, datasets: [{ data: values }] },
-            options: { plugins: { legend: { position: 'right' } } }
-        });
+                type: 'doughnut',
+                data: { labels, datasets: [{ data: values }] },
+                options: {
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: window.matchMedia('(max-width: 767px)').matches ? 'bottom' : 'right'
+                        }
+                    }
+                }
+            });
     }
 </script>
 }

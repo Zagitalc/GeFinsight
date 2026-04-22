@@ -1,33 +1,34 @@
 # FinSight 💰
-**Personal finance tracker with a polymorphic budget rule engine and AI-powered spending analysis.**
+**Personal finance tracker with a polymorphic budget rule engine, local fallback insights, and optional AI-powered spending analysis.**
 
-Built with ASP.NET Core MVC (.NET 7), Entity Framework Core, SQLite (dev) / SQL Server (prod), and the Anthropic Claude API.
+Built with ASP.NET Core MVC targeting .NET 7 and developed with the .NET 10 SDK, Entity Framework Core, SQLite for local development, Bootstrap, Chart.js, and the Anthropic Claude API.
 
 ## Quick start
 
 ```bash
 dotnet run --project FinSight.Web
-# then open http://localhost:5099
+# then open the local URL printed by dotnet
 # demo account:  demo@finsight.local / Demo12345!
 ```
 
 The database (`FinSight.Web/finsight.db`) is created automatically on first run and seeded
-with a demo user, transactions and budgets. Set `Anthropic:ApiKey` in user-secrets or
-`appsettings.json` to enable the Claude-powered insight panel.
+with a demo user, transactions and budgets when `DemoSeed:Enabled` is true. Set `Anthropic:ApiKey`
+in user-secrets or `appsettings.json` to enable Claude-powered insight; otherwise the dashboard
+shows a deterministic local insight generated from the monthly report and budget rules.
 
 ---
 
 ## Tech Stack
 | Layer | Technology |
 |---|---|
-| Backend | C# / ASP.NET Core MVC (.NET 8) |
+| Backend | C# / ASP.NET Core MVC targeting .NET 7 |
 | ORM | Entity Framework Core |
-| Database | SQL Server (local) / Azure SQL (production) |
+| Database | SQLite locally; Azure SQL deployment notes included |
 | Frontend | Razor Views, jQuery, Bootstrap 5, Chart.js |
-| AI | Anthropic Claude API |
+| AI | Optional Anthropic Claude API with local fallback insight |
 | Auth | ASP.NET Core Identity |
-| Deployment | Azure App Service + Azure SQL Database |
-| CI/CD | GitHub Actions |
+| Deployment | Azure App Service notes in `docs/AZURE_DEPLOYMENT.md` |
+| CI/CD | GitHub Actions workflow for restore, build and test |
 
 ---
 
@@ -46,8 +47,10 @@ FinSight.Infrastructure/   # EF Core, repositories, external services
 
 FinSight.Web/              # ASP.NET Core MVC app
   Controllers/             # HomeController, TransactionsController, BudgetController
-  Models/                  # ViewModels (not domain models)
+  Models/                  # Form view models
   Views/                   # Razor views per controller
+FinSight.Core.Tests/       # xUnit coverage for rules and reports
+FinSight.Infrastructure.Tests/ # SQLite integration tests for repositories
 ```
 
 ---
@@ -55,27 +58,26 @@ FinSight.Web/              # ASP.NET Core MVC app
 ## Setup
 
 ### Prerequisites
-- .NET 8 SDK
-- SQL Server (LocalDB is fine for dev)
-- An Anthropic API key (free tier works)
+- .NET 10 SDK
+- An Anthropic API key only if you want Claude-powered insights
 
 ### 1. Clone and restore
 ```bash
-git clone https://github.com/YOUR_USERNAME/FinSight.git
-cd FinSight
+git clone https://github.com/Zagitalc/GeFinsight.git
+cd GeFinsight
 dotnet restore
 ```
 
 ### 2. Configure secrets
 ```bash
 cd FinSight.Web
-dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Server=(localdb)\\mssqllocaldb;Database=FinSight;Trusted_Connection=True;"
+dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Data Source=finsight.db"
 dotnet user-secrets set "Anthropic:ApiKey" "YOUR_KEY_HERE"
 ```
 
-### 3. Apply migrations
+### 3. Run tests
 ```bash
-dotnet ef database update --project FinSight.Infrastructure --startup-project FinSight.Web
+dotnet test
 ```
 
 ### 4. Run
@@ -90,5 +92,11 @@ dotnet run --project FinSight.Web
 - **Polymorphism** — `IBudgetRule` implemented by 4 concrete rule types, each evaluated the same way
 - **Abstract classes** — `ReportGenerator` with overridden `Generate()` per report type
 - **Inheritance** — `RecurringTransaction` extends `Transaction`
-- **Strategy pattern** — `IExportStrategy` with CSV and PDF implementations
+- **Strategy pattern** — `IExportStrategy` with a CSV implementation that can be extended for other formats
 - **Repository pattern** — data access abstracted behind interfaces, swappable for testing
+
+## Interview Evidence
+- OOP: budget rules use a shared interface, abstract base class and factory to evaluate rule types polymorphically.
+- SQL: `FinSight.Infrastructure/Data/queries.sql` documents joins, aggregations, rolling totals and trend queries.
+- Testing: xUnit covers the rule engine, report generators and EF Core repositories using SQLite in-memory tests.
+- Cloud: Azure App Service and Azure SQL configuration notes are documented in `docs/AZURE_DEPLOYMENT.md`.

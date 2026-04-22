@@ -14,9 +14,10 @@ public interface ITransactionRepository
     Task<IEnumerable<Transaction>> GetByUserAndMonthAsync(string userId, int year, int month);
     Task<IEnumerable<Transaction>> GetByUserAndCategoryAsync(string userId, string category);
     Task<Transaction?> GetByIdAsync(int id);
+    Task<Transaction?> GetByIdForUserAsync(int id, string userId);
     Task AddAsync(Transaction transaction);
     Task UpdateAsync(Transaction transaction);
-    Task DeleteAsync(int id);
+    Task DeleteAsync(int id, string userId);
 
     // Aggregation queries — used by reports and rule engine
     Task<decimal> GetTotalByUserAndCategoryAsync(string userId, string category, DateTime from, DateTime to);
@@ -27,9 +28,10 @@ public interface IBudgetRepository
 {
     Task<IEnumerable<Budget>> GetByUserAsync(string userId);
     Task<Budget?> GetByIdAsync(int id);
+    Task<Budget?> GetByIdForUserAsync(int id, string userId);
     Task AddAsync(Budget budget);
     Task UpdateAsync(Budget budget);
-    Task DeleteAsync(int id);
+    Task DeleteAsync(int id, string userId);
 }
 
 public interface ICategoryRepository

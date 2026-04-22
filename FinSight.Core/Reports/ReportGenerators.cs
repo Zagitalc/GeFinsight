@@ -29,6 +29,12 @@ public abstract class ReportGenerator
             .Where(t => t.Type == TransactionType.Expense)
             .GroupBy(t => t.CategoryName)
             .ToDictionary(g => g.Key, g => g.Sum(t => Math.Abs(t.Amount)));
+
+    protected static Dictionary<string, decimal> GroupByCategory(IEnumerable<Transaction> transactions)
+        => transactions
+            .Where(t => t.Type == TransactionType.Expense)
+            .GroupBy(t => t.CategoryName)
+            .ToDictionary(g => g.Key, g => g.Sum(t => Math.Abs(t.Amount)));
 }
 
 // ─────────────────────────────────────────────
@@ -58,7 +64,7 @@ public class MonthlySummaryReport : ReportGenerator
             TotalIncome   = income,
             TotalExpenses = expenses,
             NetAmount     = income - expenses,
-            ByCategory    = GroupByCategory(),
+            ByCategory    = GroupByCategory(filtered),
             Rows          = filtered.OrderByDescending(t => t.Date)
                                     .Select(ReportRow.From)
                                     .ToList()

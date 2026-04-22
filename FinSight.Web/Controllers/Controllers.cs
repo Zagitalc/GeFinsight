@@ -1,7 +1,11 @@
+using FinSight.Core.Domain;
 using FinSight.Core.Interfaces;
 using FinSight.Core.Reports;
+using FinSight.Core.Rules;
+using FinSight.Web.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using System.Security.Claims;
 
 namespace FinSight.Web.Controllers;
@@ -52,12 +56,32 @@ public class HomeController : Controller
         string insight;
         try   { insight = await _claude.GetSpendingInsightAsync(summary, ruleResults); }
         catch { insight = string.Empty; }  // Graceful fallback if API unavailable
+        if (string.IsNullOrWhiteSpace(insight))
+            insight = BuildLocalInsight(report, ruleResults);
 
         ViewBag.Report      = report;
         ViewBag.RuleResults = ruleResults;
         ViewBag.Insight     = insight;
 
         return View();
+    }
+
+    private static string BuildLocalInsight(ReportData report, IEnumerable<RuleResult> ruleResults)
+    {
+        var topCategory = report.ByCategory.OrderByDescending(kv => kv.Value).FirstOrDefault();
+        var breached = ruleResults.FirstOrDefault(r => r.Severity == RuleSeverity.Breached);
+        var warning = ruleResults.FirstOrDefault(r => r.Severity == RuleSeverity.Warning);
+
+        if (breached is not null)
+            return $"{breached.CategoryName} needs attention: {breached.Message} Net position is £{report.NetAmount:N2} this month.";
+
+        if (warning is not null)
+            return $"{warning.CategoryName} is close to its budget: {warning.Message} Current net position is £{report.NetAmount:N2}.";
+
+        if (!string.IsNullOrWhiteSpace(topCategory.Key))
+            return $"{topCategory.Key} is the largest expense category this month at £{topCategory.Value:N2}. Overall net position is £{report.NetAmount:N2}, with all active budget rules currently on track.";
+
+        return $"No spending has been recorded this month yet. Current net position is £{report.NetAmount:N2}.";
     }
 }
 
@@ -89,22 +113,36 @@ public class TransactionsController : Controller
     // GET /Transactions/Create
     public async Task<IActionResult> Create()
     {
-        ViewBag.Categories = await _categories.GetAllAsync();
-        return View();
+        return View(new TransactionFormViewModel
+        {
+            Categories = await BuildCategoryOptionsAsync()
+        });
     }
 
     // POST /Transactions/Create
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create(Core.Domain.Transaction model)
+    public async Task<IActionResult> Create(TransactionFormViewModel model)
     {
         if (!ModelState.IsValid)
         {
-            ViewBag.Categories = await _categories.GetAllAsync();
+            model.Categories = await BuildCategoryOptionsAsync();
             return View(model);
         }
 
-        model.UserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-        await _transactions.AddAsync(model);
+        var signedAmount = Math.Abs(model.Amount);
+        if (model.Type == TransactionType.Expense)
+            signedAmount *= -1;
+
+        await _transactions.AddAsync(new Core.Domain.Transaction
+        {
+            UserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!,
+            Date = model.Date,
+            CategoryName = model.CategoryName,
+            Type = model.Type,
+            Amount = signedAmount,
+            Note = model.Note ?? string.Empty
+        });
+
         return RedirectToAction(nameof(Index));
     }
 
@@ -112,7 +150,8 @@ public class TransactionsController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(int id)
     {
-        await _transactions.DeleteAsync(id);
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        await _transactions.DeleteAsync(id, userId);
         return RedirectToAction(nameof(Index));
     }
 
@@ -125,18 +164,107 @@ public class TransactionsController : Controller
         var bytes  = await export.ExportAsync(txns);
         return File(bytes, export.ContentType, $"finsight-export.{export.FileExtension}");
     }
+
+    private async Task<IEnumerable<SelectListItem>> BuildCategoryOptionsAsync()
+        => (await _categories.GetAllAsync())
+            .Select(c => new SelectListItem($"{c.Icon} {c.Name}", c.Name));
 }
 
 [Authorize]
 public class BudgetController : Controller
 {
     private readonly IBudgetRepository _budgets;
+    private readonly ICategoryRepository _categories;
 
-    public BudgetController(IBudgetRepository budgets) => _budgets = budgets;
+    public BudgetController(IBudgetRepository budgets, ICategoryRepository categories)
+    {
+        _budgets = budgets;
+        _categories = categories;
+    }
 
     public async Task<IActionResult> Index()
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
         return View(await _budgets.GetByUserAsync(userId));
     }
+
+    public async Task<IActionResult> Create()
+        => View("Form", new BudgetFormViewModel
+        {
+            Categories = await BuildCategoryOptionsAsync()
+        });
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Create(BudgetFormViewModel model)
+    {
+        if (!ModelState.IsValid)
+        {
+            model.Categories = await BuildCategoryOptionsAsync();
+            return View("Form", model);
+        }
+
+        await _budgets.AddAsync(new Budget
+        {
+            UserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!,
+            CategoryName = model.CategoryName,
+            RuleType = model.RuleType,
+            LimitAmount = model.LimitAmount,
+            IsActive = model.IsActive
+        });
+
+        return RedirectToAction(nameof(Index));
+    }
+
+    public async Task<IActionResult> Edit(int id)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var budget = await _budgets.GetByIdForUserAsync(id, userId);
+        if (budget is null) return NotFound();
+
+        return View("Form", new BudgetFormViewModel
+        {
+            Id = budget.Id,
+            CategoryName = budget.CategoryName,
+            RuleType = budget.RuleType,
+            LimitAmount = budget.LimitAmount,
+            IsActive = budget.IsActive,
+            Categories = await BuildCategoryOptionsAsync()
+        });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Edit(int id, BudgetFormViewModel model)
+    {
+        if (!ModelState.IsValid)
+        {
+            model.Id = id;
+            model.Categories = await BuildCategoryOptionsAsync();
+            return View("Form", model);
+        }
+
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var budget = await _budgets.GetByIdForUserAsync(id, userId);
+        if (budget is null) return NotFound();
+
+        budget.CategoryName = model.CategoryName;
+        budget.RuleType = model.RuleType;
+        budget.LimitAmount = model.LimitAmount;
+        budget.IsActive = model.IsActive;
+        await _budgets.UpdateAsync(budget);
+
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        await _budgets.DeleteAsync(id, userId);
+        return RedirectToAction(nameof(Index));
+    }
+
+    private async Task<IEnumerable<SelectListItem>> BuildCategoryOptionsAsync()
+        => (await _categories.GetAllAsync())
+            .Where(c => c.Name != "Income")
+            .Select(c => new SelectListItem($"{c.Icon} {c.Name}", c.Name));
 }

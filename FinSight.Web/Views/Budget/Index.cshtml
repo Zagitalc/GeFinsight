@@ -3,23 +3,35 @@
     ViewData["Title"] = "Budgets";
 }
 
-<h1 class="mb-3">Budgets</h1>
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
+    <h1 class="page-title mb-0">Budgets</h1>
+    <a class="btn btn-primary" asp-action="Create">New Budget Rule</a>
+</div>
 
-<table class="table bg-white">
-    <thead><tr><th>Category</th><th>Rule type</th><th class="text-end">Limit</th><th>Active</th></tr></thead>
-    <tbody>
-        @foreach (var b in Model)
-        {
-            <tr>
-                <td>@b.CategoryName</td>
-                <td>@b.RuleType</td>
-                <td class="text-end">@b.LimitAmount.ToString("N2")</td>
-                <td>@(b.IsActive ? "Yes" : "No")</td>
-            </tr>
-        }
-        @if (!Model.Any())
-        {
-            <tr><td colspan="4" class="text-center text-muted py-4">No budgets configured.</td></tr>
-        }
-    </tbody>
-</table>
+<div class="workspace-panel table-wrap mb-4">
+    <table class="table table-hover align-middle mb-0">
+        <thead><tr><th>Category</th><th>Rule Type</th><th class="text-end">Limit</th><th>Active</th><th></th></tr></thead>
+        <tbody>
+            @foreach (var b in Model)
+            {
+                <tr>
+                    <td>@b.CategoryName</td>
+                    <td>@b.RuleType</td>
+                    <td class="text-end">@b.LimitAmount.ToString("N2")</td>
+                    <td><span class="badge bg-@(b.IsActive ? "success" : "secondary")">@(b.IsActive ? "Active" : "Paused")</span></td>
+                    <td class="text-end">
+                        <a class="btn btn-sm btn-outline-secondary" asp-action="Edit" asp-route-id="@b.Id">Edit</a>
+                        <form method="post" asp-action="Delete" asp-route-id="@b.Id" class="d-inline">
+                            @Html.AntiForgeryToken()
+                            <button class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this budget rule?')">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+            @if (!Model.Any())
+            {
+                <tr><td colspan="5" class="text-center text-muted py-4">No budgets configured.</td></tr>
+            }
+        </tbody>
+    </table>
+</div>

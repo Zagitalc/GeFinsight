@@ -27,7 +27,7 @@ public class BudgetRuleEngine : IBudgetRuleEngine
     public async Task<IEnumerable<RuleResult>> EvaluateAllAsync(string userId)
     {
         var today    = DateTime.Today;
-        var budgets  = await _budgets.GetByUserAsync(userId);
+        var budgets  = (await _budgets.GetByUserAsync(userId)).Where(b => b.IsActive);
         var txns     = await _transactions.GetByUserAndMonthAsync(userId, today.Year, today.Month);
         var income   = await _transactions.GetMonthlyIncomeAsync(userId, today.Year, today.Month);
 
