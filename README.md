@@ -1,4 +1,4 @@
-# FinSight 💰
+# GeFinsight 💰
 **Personal finance tracker with a polymorphic budget rule engine, local fallback insights, and optional AI-powered spending analysis.**
 
 Built with ASP.NET Core MVC targeting .NET 7 and developed with the .NET 10 SDK, Entity Framework Core, SQLite for local development, Bootstrap, Chart.js, and the Anthropic Claude API.
@@ -6,12 +6,12 @@ Built with ASP.NET Core MVC targeting .NET 7 and developed with the .NET 10 SDK,
 ## Quick start
 
 ```bash
-dotnet run --project FinSight.Web
+dotnet run --project GeFinsight.Web
 # then open the local URL printed by dotnet
-# demo account:  demo@finsight.local / Demo12345!
+# demo account:  demo@gefinsight.local / Demo12345!
 ```
 
-The database (`FinSight.Web/finsight.db`) is created automatically on first run and seeded
+The database (`GeFinsight.Web/gefinsight.db`) is created automatically on first run and seeded
 with a demo user, transactions and budgets when `DemoSeed:Enabled` is true. Set `Anthropic:ApiKey`
 in user-secrets or `appsettings.json` to enable Claude-powered insight; otherwise the dashboard
 shows a deterministic local insight generated from the monthly report and budget rules.
@@ -34,23 +34,23 @@ shows a deterministic local insight generated from the monthly report and budget
 
 ## Project Structure
 ```
-FinSight.Core/             # Domain logic — no framework dependencies
+GeFinsight.Core/             # Domain logic — no framework dependencies
   Domain/                  # Entities: Transaction, Budget, Category, AppUser
   Interfaces/              # ITransactionRepository, IBudgetRepository, IBudgetRule, etc.
   Rules/                   # Budget rule hierarchy (polymorphism lives here)
   Reports/                 # Abstract ReportGenerator + concrete report types
 
-FinSight.Infrastructure/   # EF Core, repositories, external services
+GeFinsight.Infrastructure/   # EF Core, repositories, external services
   Data/                    # AppDbContext, migrations, seed data
   Repositories/            # Concrete implementations of Core interfaces
   Services/                # ClaudeService, ExportService
 
-FinSight.Web/              # ASP.NET Core MVC app
+GeFinsight.Web/              # ASP.NET Core MVC app
   Controllers/             # HomeController, TransactionsController, BudgetController
   Models/                  # Form view models
   Views/                   # Razor views per controller
-FinSight.Core.Tests/       # xUnit coverage for rules and reports
-FinSight.Infrastructure.Tests/ # SQLite integration tests for repositories
+GeFinsight.Core.Tests/       # xUnit coverage for rules and reports
+GeFinsight.Infrastructure.Tests/ # SQLite integration tests for repositories
 ```
 
 ---
@@ -70,8 +70,8 @@ dotnet restore
 
 ### 2. Configure secrets
 ```bash
-cd FinSight.Web
-dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Data Source=finsight.db"
+cd GeFinsight.Web
+dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Data Source=gefinsight.db"
 dotnet user-secrets set "Anthropic:ApiKey" "YOUR_KEY_HERE"
 ```
 
@@ -82,7 +82,7 @@ dotnet test
 
 ### 4. Run
 ```bash
-dotnet run --project FinSight.Web
+dotnet run --project GeFinsight.Web
 ```
 
 ---
@@ -97,6 +97,6 @@ dotnet run --project FinSight.Web
 
 ## Interview Evidence
 - OOP: budget rules use a shared interface, abstract base class and factory to evaluate rule types polymorphically.
-- SQL: `FinSight.Infrastructure/Data/queries.sql` documents joins, aggregations, rolling totals and trend queries.
+- SQL: `GeFinsight.Infrastructure/Data/queries.sql` documents joins, aggregations, rolling totals and trend queries.
 - Testing: xUnit covers the rule engine, report generators and EF Core repositories using SQLite in-memory tests.
 - Cloud: Azure App Service and Azure SQL configuration notes are documented in `docs/AZURE_DEPLOYMENT.md`.

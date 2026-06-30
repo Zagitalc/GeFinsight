@@ -1,11 +1,11 @@
 # Azure Deployment Notes
 
-FinSight is ready to deploy as an ASP.NET Core MVC app to Azure App Service.
+GeFinsight is ready to deploy as an ASP.NET Core MVC app to Azure App Service.
 
 ## App Service
 
 - Runtime stack: .NET 7 target framework, built with the .NET 10 SDK
-- Startup project: `FinSight.Web`
+- Startup project: `GeFinsight.Web`
 - Required app settings:
   - `ConnectionStrings__DefaultConnection`
   - `DemoSeed__Enabled`
@@ -15,7 +15,7 @@ FinSight is ready to deploy as an ASP.NET Core MVC app to Azure App Service.
 
 ## Database
 
-Development uses SQLite. For Azure SQL, change the EF provider in `FinSight.Web/Program.cs` from `UseSqlite` to `UseSqlServer` and set `ConnectionStrings__DefaultConnection` to the Azure SQL connection string.
+Development uses SQLite. For Azure SQL, change the EF provider in `GeFinsight.Web/Program.cs` from `UseSqlite` to `UseSqlServer` and set `ConnectionStrings__DefaultConnection` to the Azure SQL connection string.
 
 ## CI
 
