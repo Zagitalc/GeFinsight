@@ -4,5 +4,7 @@ obj/
 *.suo
 .vs/
 *.db
+*.db-shm
+*.db-wal
 *.db-*
 .claude/

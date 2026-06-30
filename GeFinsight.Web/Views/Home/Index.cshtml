@@ -3,6 +3,7 @@
     var report      = (ReportData)ViewBag.Report;
     var ruleResults = (List<RuleResult>)ViewBag.RuleResults;
     var insight     = (string)(ViewBag.Insight ?? string.Empty);
+    var insightHeading = (string)(ViewBag.InsightHeading ?? "Insight");
 }
 
 <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-4">
@@ -70,7 +71,7 @@
 </div>
 
 <section class="workspace-panel mt-4 mb-4">
-    <div class="panel-header">AI Insight</div>
+    <div class="panel-header">@insightHeading</div>
     <div class="p-3">
         <p class="mb-0">@insight</p>
     </div>

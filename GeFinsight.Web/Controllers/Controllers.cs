@@ -1,7 +1,6 @@
 using GeFinsight.Core.Domain;
 using GeFinsight.Core.Interfaces;
 using GeFinsight.Core.Reports;
-using GeFinsight.Core.Rules;
 using GeFinsight.Web.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -15,16 +14,19 @@ public class HomeController : Controller
 {
     private readonly ITransactionRepository _transactions;
     private readonly IBudgetRuleEngine _ruleEngine;
-    private readonly IClaudeService _claude;
+    private readonly IInsightService _insights;
+    private readonly InsightDisplayOptions _insightDisplay;
 
     public HomeController(
         ITransactionRepository transactions,
         IBudgetRuleEngine ruleEngine,
-        IClaudeService claude)
+        IInsightService insights,
+        InsightDisplayOptions insightDisplay)
     {
-        _transactions = transactions;
-        _ruleEngine   = ruleEngine;
-        _claude       = claude;
+        _transactions   = transactions;
+        _ruleEngine     = ruleEngine;
+        _insights       = insights;
+        _insightDisplay = insightDisplay;
     }
 
     // GET /
@@ -42,7 +44,6 @@ public class HomeController : Controller
         // Run rule engine — evaluates all active budget rules polymorphically
         var ruleResults = (await _ruleEngine.EvaluateAllAsync(userId)).ToList();
 
-        // Build spending summary for Claude
         var summary = new SpendingSummary(
             userId,
             today.Year,
@@ -52,36 +53,16 @@ public class HomeController : Controller
             report.ByCategory
         );
 
-        // Get AI insight (cached per session in production — keep costs low)
-        string insight;
-        try   { insight = await _claude.GetSpendingInsightAsync(summary, ruleResults); }
-        catch { insight = string.Empty; }  // Graceful fallback if API unavailable
-        if (string.IsNullOrWhiteSpace(insight))
-            insight = BuildLocalInsight(report, ruleResults);
+        var insight = await _insights.GenerateInsightAsync(
+            new InsightContext(report, summary, ruleResults),
+            HttpContext.RequestAborted);
 
         ViewBag.Report      = report;
         ViewBag.RuleResults = ruleResults;
         ViewBag.Insight     = insight;
+        ViewBag.InsightHeading = _insightDisplay.Heading;
 
         return View();
-    }
-
-    private static string BuildLocalInsight(ReportData report, IEnumerable<RuleResult> ruleResults)
-    {
-        var topCategory = report.ByCategory.OrderByDescending(kv => kv.Value).FirstOrDefault();
-        var breached = ruleResults.FirstOrDefault(r => r.Severity == RuleSeverity.Breached);
-        var warning = ruleResults.FirstOrDefault(r => r.Severity == RuleSeverity.Warning);
-
-        if (breached is not null)
-            return $"{breached.CategoryName} needs attention: {breached.Message} Net position is £{report.NetAmount:N2} this month.";
-
-        if (warning is not null)
-            return $"{warning.CategoryName} is close to its budget: {warning.Message} Current net position is £{report.NetAmount:N2}.";
-
-        if (!string.IsNullOrWhiteSpace(topCategory.Key))
-            return $"{topCategory.Key} is the largest expense category this month at £{topCategory.Value:N2}. Overall net position is £{report.NetAmount:N2}, with all active budget rules currently on track.";
-
-        return $"No spending has been recorded this month yet. Current net position is £{report.NetAmount:N2}.";
     }
 }
 

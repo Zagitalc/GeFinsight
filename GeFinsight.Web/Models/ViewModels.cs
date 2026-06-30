@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 
 namespace GeFinsight.Web.Models;
 
+public sealed record InsightDisplayOptions(string Heading);
+
 public class TransactionFormViewModel
 {
     [Required]

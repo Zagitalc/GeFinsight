@@ -10,7 +10,6 @@ public static class DemoDataSeeder
     public static async Task SeedAsync(IServiceProvider services)
     {
         var db = services.GetRequiredService<AppDbContext>();
-        await db.Database.EnsureCreatedAsync();
 
         var config  = services.GetRequiredService<IConfiguration>();
         var enabled = config.GetValue<bool>("DemoSeed:Enabled");
@@ -31,19 +30,23 @@ public static class DemoDataSeeder
                 DisplayName = "Demo User"
             };
             var result = await userMgr.CreateAsync(user, pwd);
-            if (!result.Succeeded) return;
+            if (!result.Succeeded)
+            {
+                var errors = string.Join("; ", result.Errors.Select(e => e.Description));
+                throw new InvalidOperationException($"Demo user could not be created: {errors}");
+            }
         }
 
-        var today = DateTime.Today;
-        var startOfMonth = new DateTime(today.Year, today.Month, 1);
+        var now = DateTime.UtcNow;
+        var startOfMonth = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
 
-        await UpsertDemoTransactionsAsync(db, user.Id, BuildDemoTransactions(user.Id, startOfMonth, today));
+        await UpsertDemoTransactionsAsync(db, user.Id, BuildDemoTransactions(user.Id, startOfMonth));
         await UpsertDemoBudgetsAsync(db, user.Id, BuildDemoBudgets(user.Id));
 
         await db.SaveChangesAsync();
     }
 
-    private static IEnumerable<Transaction> BuildDemoTransactions(string userId, DateTime startOfMonth, DateTime today)
+    private static IEnumerable<Transaction> BuildDemoTransactions(string userId, DateTime startOfMonth)
     {
         var seeds = new[]
         {
@@ -64,7 +67,7 @@ public static class DemoDataSeeder
             UserId = userId,
             Amount = seed.Amount,
             CategoryName = seed.CategoryName,
-            Date = DateWithinCurrentMonth(startOfMonth, today, seed.DayOffset),
+            Date = startOfMonth.AddDays(seed.DayOffset),
             Type = seed.Type,
             Note = seed.Note
         });
@@ -124,9 +127,6 @@ public static class DemoDataSeeder
             existing.IsActive = demo.IsActive;
         }
     }
-
-    private static DateTime DateWithinCurrentMonth(DateTime startOfMonth, DateTime today, int dayOffset)
-        => startOfMonth.AddDays(Math.Min(dayOffset, today.Day - 1));
 
     private sealed record DemoTransactionSeed(
         string CategoryName,

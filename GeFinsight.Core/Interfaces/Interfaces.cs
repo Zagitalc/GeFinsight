@@ -1,4 +1,5 @@
 using GeFinsight.Core.Domain;
+using GeFinsight.Core.Reports;
 using GeFinsight.Core.Rules;
 
 namespace GeFinsight.Core.Interfaces;
@@ -73,13 +74,14 @@ public interface IBudgetRuleEngine
     Task<IEnumerable<RuleResult>> EvaluateAllAsync(string userId);
 }
 
-public interface IClaudeService
+public interface IInsightService
 {
     /// <summary>
-    /// Sends a spending summary + rule results to Claude and returns
-    /// a plain-English analysis paragraph for the dashboard.
+    /// Generates a plain-English insight paragraph for the dashboard.
     /// </summary>
-    Task<string> GetSpendingInsightAsync(SpendingSummary summary, IEnumerable<RuleResult> ruleResults);
+    Task<string> GenerateInsightAsync(
+        InsightContext context,
+        CancellationToken cancellationToken = default);
 }
 
 public interface IExportStrategy
@@ -100,4 +102,10 @@ public record SpendingSummary(
     decimal TotalIncome,
     decimal TotalExpenses,
     Dictionary<string, decimal> ByCategory
+);
+
+public record InsightContext(
+    ReportData Report,
+    SpendingSummary Summary,
+    IReadOnlyList<RuleResult> RuleResults
 );

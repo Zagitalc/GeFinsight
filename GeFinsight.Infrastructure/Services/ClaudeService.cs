@@ -3,23 +3,44 @@ using System.Text.Json;
 using GeFinsight.Core.Interfaces;
 using GeFinsight.Core.Rules;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace GeFinsight.Infrastructure.Services;
 
-// ─────────────────────────────────────────────
-// ClaudeService — sends spending data to the
-// Anthropic API and returns a plain-English insight.
-// Injected via IClaudeService wherever needed.
-// ─────────────────────────────────────────────
+public class LocalInsightService : IInsightService
+{
+    public Task<string> GenerateInsightAsync(
+        InsightContext context,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
 
-public class ClaudeService : IClaudeService
+        var report = context.Report;
+        var topCategory = report.ByCategory.OrderByDescending(kv => kv.Value).FirstOrDefault();
+        var breached = context.RuleResults.FirstOrDefault(r => r.Severity == RuleSeverity.Breached);
+        var warning = context.RuleResults.FirstOrDefault(r => r.Severity == RuleSeverity.Warning);
+
+        if (breached is not null)
+            return Task.FromResult($"{breached.CategoryName} needs attention: {breached.Message} Net position is £{report.NetAmount:N2} this month.");
+
+        if (warning is not null)
+            return Task.FromResult($"{warning.CategoryName} is close to its budget: {warning.Message} Current net position is £{report.NetAmount:N2}.");
+
+        if (!string.IsNullOrWhiteSpace(topCategory.Key))
+            return Task.FromResult($"{topCategory.Key} is the largest expense category this month at £{topCategory.Value:N2}. Overall net position is £{report.NetAmount:N2}, with all active budget rules currently on track.");
+
+        return Task.FromResult($"No spending has been recorded this month yet. Current net position is £{report.NetAmount:N2}.");
+    }
+}
+
+public class ClaudeInsightService : IInsightService
 {
     private readonly HttpClient _http;
     private readonly string _apiKey;
     private const string ApiUrl = "https://api.anthropic.com/v1/messages";
     private const string Model   = "claude-opus-4-6";
 
-    public ClaudeService(HttpClient http, IConfiguration config)
+    public ClaudeInsightService(HttpClient http, IConfiguration config)
     {
         _http   = http;
         _apiKey = config["Anthropic:ApiKey"] ?? string.Empty;
@@ -31,12 +52,14 @@ public class ClaudeService : IClaudeService
         }
     }
 
-    public async Task<string> GetSpendingInsightAsync(SpendingSummary summary, IEnumerable<RuleResult> ruleResults)
+    public async Task<string> GenerateInsightAsync(
+        InsightContext context,
+        CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(_apiKey))
-            return string.Empty;
+            throw new InvalidOperationException("Anthropic API key is not configured.");
 
-        var prompt = BuildPrompt(summary, ruleResults);
+        var prompt = BuildPrompt(context.Summary, context.RuleResults);
 
         var requestBody = new
         {
@@ -48,15 +71,20 @@ public class ClaudeService : IClaudeService
             }
         };
 
-        var response = await _http.PostAsJsonAsync(ApiUrl, requestBody);
-        response.EnsureSuccessStatusCode();
+        using var response = await _http.PostAsJsonAsync(ApiUrl, requestBody, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+            throw new HttpRequestException($"Claude insight request failed with HTTP {(int)response.StatusCode}.");
 
-        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
-        return json
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: cancellationToken);
+        var text = json
             .GetProperty("content")[0]
             .GetProperty("text")
-            .GetString()
-            ?? "Unable to generate insight at this time.";
+            .GetString();
+
+        if (string.IsNullOrWhiteSpace(text))
+            throw new JsonException("Claude insight response did not contain text.");
+
+        return text;
     }
 
     private static string BuildPrompt(SpendingSummary summary, IEnumerable<RuleResult> ruleResults)
@@ -86,6 +114,42 @@ public class ClaudeService : IClaudeService
             Budget rule results:
             {ruleLines}
             """;
+    }
+}
+
+public class FallbackInsightService : IInsightService
+{
+    private readonly ClaudeInsightService _claude;
+    private readonly LocalInsightService _local;
+    private readonly ILogger<FallbackInsightService> _logger;
+
+    public FallbackInsightService(
+        ClaudeInsightService claude,
+        LocalInsightService local,
+        ILogger<FallbackInsightService> logger)
+    {
+        _claude = claude;
+        _local = local;
+        _logger = logger;
+    }
+
+    public async Task<string> GenerateInsightAsync(
+        InsightContext context,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await _claude.GenerateInsightAsync(context, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            _logger.LogWarning(exception, "Claude insight generation failed. Local insight generation will be used.");
+            return await _local.GenerateInsightAsync(context, cancellationToken);
+        }
     }
 }
 
